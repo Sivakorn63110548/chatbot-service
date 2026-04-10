@@ -25,5 +25,3 @@ _context_path = os.path.join(os.path.dirname(__file__), "..", "AI_CONTEXT.md")
 
 with open(_context_path, encoding="utf-8") as f:
     KNOWLEDGE_BASE = f.read()
-
-MAX_HISTORY = 10  # เก็บ history ไว้แค่ 10 messages ล่าสุด

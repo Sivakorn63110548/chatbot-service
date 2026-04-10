@@ -1,18 +1,32 @@
 import json
 import re
 import logging
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
-from .groq_client import get_chat_response
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query
+from app.core.config import ACCESS_TOKEN
+from app.core.database import save_message, load_history
+from app.services.llm import get_chat_response
 
-logger = logging.getLogger("socket")
+logger = logging.getLogger("chat")
 router = APIRouter()
 
+
 @router.websocket("/ws/chat")
-async def websocket_chat(websocket: WebSocket):
+async def websocket_chat(
+    websocket: WebSocket,
+    token: str = Query(...),
+    session_id: str = Query(...),
+):
+    if token != ACCESS_TOKEN:
+        await websocket.close(code=1008)
+        logger.warning(f"[WS] Unauthorized from {websocket.client.host}")
+        return
+
     await websocket.accept()
     client = websocket.client
-    logger.info(f"[WS] Connected: {client.host}:{client.port}")
-    history: list[dict] = []
+    logger.info(f"[WS] Connected: {client.host}:{client.port} session={session_id}")
+
+    history = load_history(session_id)
+    logger.info(f"[WS] Loaded {len(history)} messages from DB")
 
     try:
         while True:
@@ -30,14 +44,17 @@ async def websocket_chat(websocket: WebSocket):
 
             logger.info(f"[WS] Message from {client.host}: {user_message}")
 
+            save_message(session_id, "user", user_message)
             history.append({"role": "user", "content": user_message})
+
             response = get_chat_response(history)
-            # ตัด <think>...</think> ที่ DeepSeek ใส่มา
             response = re.sub(r"<think>.*?</think>", "", response, flags=re.DOTALL).strip()
+
+            save_message(session_id, "assistant", response)
             history.append({"role": "assistant", "content": response})
 
             logger.info(f"[WS] Reply to {client.host}: {response[:80]}...")
             await websocket.send_json({"message": response})
 
     except WebSocketDisconnect:
-        logger.info(f"[WS] Disconnected: {client.host}:{client.port}")
+        logger.info(f"[WS] Disconnected: {client.host}:{client.port} session={session_id}")
