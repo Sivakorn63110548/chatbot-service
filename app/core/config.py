@@ -3,6 +3,7 @@ import os
 GROQ_API_KEY: str = os.environ.get("GROQ_API_KEY", "")
 POSTGRES_URL: str = os.environ.get("POSTGRES_URL", "")
 ACCESS_TOKEN: str = os.environ.get("ACCESS_TOKEN", "")
+ALLOWED_ORIGIN: str = os.environ.get("ALLOWED_ORIGIN", "*")
 MAX_HISTORY: int = 10
 LLM_MODEL: str = "moonshotai/kimi-k2-instruct"
 LLM_TEMPERATURE: float = 0.3

@@ -12,6 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.routers.chat import router as chat_router
 from app.routers.history import router as history_router
 from app.core.database import init_db, check_connection
+from app.core.config import ALLOWED_ORIGIN
 
 
 @asynccontextmanager
@@ -32,7 +33,7 @@ app = fastapi.FastAPI(lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[ALLOWED_ORIGIN],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
