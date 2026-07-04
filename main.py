@@ -25,7 +25,6 @@ async def lifespan(_: fastapi.FastAPI):
         log.info("[DB] Tables ready")
     except Exception as e:
         log.error(f"[DB] Connection failed: {e}")
-        raise
     yield
 
 

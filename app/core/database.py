@@ -1,57 +1,49 @@
-import psycopg2
-from psycopg2.extras import RealDictCursor
-from app.core.config import POSTGRES_URL
+from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime, func, text
+from sqlalchemy.orm import DeclarativeBase, sessionmaker
+from app.core.config import POSTGRES_URL, MAX_HISTORY
+
+_url = POSTGRES_URL.replace("postgres://", "postgresql://", 1)
+
+engine = create_engine(_url, connect_args={"sslmode": "require"}, pool_pre_ping=True)
+SessionLocal = sessionmaker(bind=engine)
 
 
-def get_conn():
-    return psycopg2.connect(POSTGRES_URL)
+class Base(DeclarativeBase):
+    pass
+
+
+class ChatMessage(Base):
+    __tablename__ = "chat_messages"
+
+    id = Column(Integer, primary_key=True)
+    session_id = Column(String, nullable=False, index=True)
+    role = Column(String, nullable=False)
+    content = Column(Text, nullable=False)
+    created_at = Column(DateTime, server_default=func.now())
 
 
 def check_connection():
-    with get_conn() as conn:
-        with conn.cursor() as cur:
-            cur.execute("SELECT 1")
+    with engine.connect() as conn:
+        conn.execute(text("SELECT 1"))
 
 
 def init_db():
-    with get_conn() as conn:
-        with conn.cursor() as cur:
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS chat_messages (
-                    id SERIAL PRIMARY KEY,
-                    session_id TEXT NOT NULL,
-                    role TEXT NOT NULL,
-                    content TEXT NOT NULL,
-                    created_at TIMESTAMP DEFAULT NOW()
-                );
-                CREATE INDEX IF NOT EXISTS idx_session_id ON chat_messages(session_id);
-            """)
-            conn.commit()
+    Base.metadata.create_all(engine)
 
 
 def save_message(session_id: str, role: str, content: str):
-    with get_conn() as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                "INSERT INTO chat_messages (session_id, role, content) VALUES (%s, %s, %s)",
-                (session_id, role, content),
-            )
-            conn.commit()
+    with SessionLocal() as session:
+        session.add(ChatMessage(session_id=session_id, role=role, content=content))
+        session.commit()
 
 
 def load_history(session_id: str) -> list[dict]:
-    with get_conn() as conn:
-        with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute(
-                """
-                SELECT role, content FROM (
-                    SELECT role, content, created_at
-                    FROM chat_messages
-                    WHERE session_id = %s
-                    ORDER BY created_at DESC
-                    LIMIT %s
-                ) sub ORDER BY created_at ASC
-                """,
-                (session_id, 10),
-            )
-            return [{"role": r["role"], "content": r["content"]} for r in cur.fetchall()]
+    with SessionLocal() as session:
+        rows = (
+            session.query(ChatMessage)
+            .filter(ChatMessage.session_id == session_id)
+            .order_by(ChatMessage.created_at.desc())
+            .limit(MAX_HISTORY)
+            .all()
+        )
+        return [{"role": m.role, "content": m.content} for m in reversed(rows)]

@@ -1,6 +1,7 @@
-fastapi
-uvicorn
-groq
-websockets
-python-dotenv
-psycopg2-binary
+fastapi>=0.137
+uvicorn[standard]>=0.49
+groq>=0.9
+websockets>=12.0
+python-dotenv>=1.0
+psycopg2-binary>=2.9
+sqlalchemy>=2.0
