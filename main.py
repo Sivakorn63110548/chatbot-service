@@ -12,6 +12,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.routers.chat import router as chat_router
 from app.routers.history import router as history_router
 from app.routers.content import router as content_router
+from app.routers.admin.auth import router as admin_auth_router
+from app.routers.admin.content import router as admin_content_router
 from app.core.database import init_db, check_connection
 from app.core.config import ALLOWED_ORIGIN
 
@@ -42,6 +44,8 @@ app.add_middleware(
 app.include_router(chat_router)
 app.include_router(history_router)
 app.include_router(content_router)
+app.include_router(admin_auth_router)
+app.include_router(admin_content_router)
 
 
 @app.get("/", status_code=200)
